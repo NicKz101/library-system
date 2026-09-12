@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:16
+    container_name: library_db
+    restart: always
+    environment:
+      POSTGRES_USER: library_user
+      POSTGRES_PASSWORD: library_pass
+      POSTGRES_DB: library_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U library_user -d library_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    container_name: library_api
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://library_user:library_pass@db:5432/library_db
+      SECRET_KEY: change-this-secret-key-in-production
+      ACCESS_TOKEN_EXPIRE_MINUTES: 60
+      ADMIN_EMAIL: admin@library.com
+      ADMIN_PASSWORD: ChangeMe123!
+      ADMIN_FULL_NAME: System Administrator
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/code/app
+      - ./tests:/code/tests
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  pgdata:
